@@ -135,9 +135,9 @@ Sinopse: [/INST]"""
     def _fallback_synopsis(self, titulo: str, autor: str) -> str:
         """Sinopse de fallback quando LLM falha."""
         fallback_templates = {
-            "machado de assis": f"'{titulo}' é uma obra clássica de {autor} que explora com maestria os aspectos mais profundos da natureza humana, apresentando personagens complexos e uma narrativa rica em reflexões sobre a sociedade brasileira do século XIX.",
-            "george orwell": f"'{titulo}' é uma obra distópica de {autor} que apresenta uma visão crítica e provocativa sobre sistemas totalitários, controle social e a manipulação da verdade, permanecendo extremamente relevante nos dias atuais.",
-            "aluísio azevedo": f"'{titulo}' é um romance naturalista de {autor} que retrata com realismo a vida urbana brasileira, explorando as condições sociais e os contrastes da sociedade com uma narrativa envolvente e crítica."
+            "machado de assis": f"{titulo} é uma obra clássica de {autor} que explora com maestria os aspectos mais profundos da natureza humana, apresentando personagens complexos e uma narrativa rica em reflexões sobre a sociedade brasileira do século XIX.",
+            "george orwell": f"{titulo} é uma obra distópica de {autor} que apresenta uma visão crítica e provocativa sobre sistemas totalitários, controle social e a manipulação da verdade, permanecendo extremamente relevante nos dias atuais.",
+            "aluísio azevedo": f"{titulo} é um romance naturalista de {autor} que retrata com realismo a vida urbana brasileira, explorando as condições sociais e os contrastes da sociedade com uma narrativa envolvente e crítica."
         }
         
         autor_lower = autor.lower()
