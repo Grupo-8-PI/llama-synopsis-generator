@@ -49,7 +49,9 @@ RABBITMQ_PORT=5672
 RABBITMQ_USERNAME=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_VIRTUAL_HOST=/
-RABBITMQ_QUEUE_NAME=synopsis_queue
+RABBITMQ_QUEUE_NAME=fila-exemplo
+RABBITMQ_EXCHANGE_NAME=
+RABBITMQ_ROUTING_KEY=
 
 # Configurações de Performance
 RABBITMQ_PREFETCH_COUNT=1
@@ -65,6 +67,15 @@ RABBITMQ_RECOVERY_TIMEOUT=30.0
 RABBITMQ_QUEUE_MODE=passive
 RABBITMQ_WAIT_FOR_QUEUE=true
 RABBITMQ_QUEUE_CHECK_INTERVAL=5.0
+
+# Configuração LLM (Hugging Face)
+# Deixe HF_API_KEY vazio para usar fallback
+# Para usar API real: obtenha chave em https://huggingface.co/settings/tokens
+HF_API_KEY=
+HF_MODEL=meta-llama/Llama-2-7b-chat-hf
+LLM_MAX_TOKENS=500
+LLM_TEMPERATURE=0.7
+LLM_TIMEOUT=30
 ```
 
 ### Variáveis de Configuração Explicadas
@@ -75,7 +86,10 @@ RABBITMQ_QUEUE_CHECK_INTERVAL=5.0
 | `RABBITMQ_PORT` | `5672` | Porta do RabbitMQ |
 | `RABBITMQ_USERNAME` | `guest` | Usuário para autenticação |
 | `RABBITMQ_PASSWORD` | `guest` | Senha para autenticação |
-| `RABBITMQ_QUEUE_NAME` | `default_queue` | Nome da fila a consumir |
+| `RABBITMQ_VIRTUAL_HOST` | `/` | Virtual host do RabbitMQ |
+| `RABBITMQ_QUEUE_NAME` | `fila-exemplo` | Nome da fila a consumir |
+| `RABBITMQ_EXCHANGE_NAME` | `` | Nome do exchange (opcional) |
+| `RABBITMQ_ROUTING_KEY` | `` | Routing key (opcional) |
 | `RABBITMQ_PREFETCH_COUNT` | `1` | Msgs simultâneas por consumer |
 | `RABBITMQ_MAX_RETRIES` | `10` | Máximo de tentativas de reconexão |
 | `RABBITMQ_INITIAL_RETRY_DELAY` | `1.0` | Delay inicial entre tentativas (seg) |
@@ -85,6 +99,11 @@ RABBITMQ_QUEUE_CHECK_INTERVAL=5.0
 | `RABBITMQ_QUEUE_MODE` | `passive` | Modo: `passive` ou `active` |
 | `RABBITMQ_WAIT_FOR_QUEUE` | `true` | Aguardar fila aparecer |
 | `RABBITMQ_QUEUE_CHECK_INTERVAL` | `5.0` | Intervalo de verificação da fila (seg) |
+| `HF_API_KEY` | `` | Chave da API Hugging Face (opcional) |
+| `HF_MODEL` | `meta-llama/Llama-2-7b-chat-hf` | Modelo LLM a usar |
+| `LLM_MAX_TOKENS` | `500` | Máximo de tokens na resposta |
+| `LLM_TEMPERATURE` | `0.7` | Criatividade do modelo (0.0-1.0) |
+| `LLM_TIMEOUT` | `30` | Timeout para chamadas LLM (seg) |
 
 ## 🔧 Modos de Operação
 
@@ -111,9 +130,9 @@ RABBITMQ_QUEUE_CHECK_INTERVAL=5.0
 **Exemplo de logs:**
 ```
 INFO - Queue mode: passive
-INFO - Waiting for queue 'synopsis_queue' to be available...
-INFO - Found existing queue 'synopsis_queue' with 3 messages
-INFO - Started consuming from queue 'synopsis_queue'
+INFO - Waiting for queue 'fila-exemplo' to be available...
+INFO - Found existing queue 'fila-exemplo' with 3 messages
+INFO - Started consuming from queue 'fila-exemplo'
 ```
 
 ### 🏗️ Active Mode (Modo tradicional)
@@ -178,15 +197,15 @@ RABBITMQ_QUEUE_MODE=active
 ```
 INFO - Starting RabbitMQ consumer with auto-retry capability
 INFO - Queue mode: passive
-INFO - Target queue: synopsis_queue
+INFO - Target queue: fila-exemplo
 INFO - Wait for queue: true
 ```
 
 #### Operação Normal
 ```
 INFO - Connected successfully to RabbitMQ at localhost:5672
-INFO - Found existing queue 'synopsis_queue' with 3 messages
-INFO - Started consuming from queue 'synopsis_queue'
+INFO - Found existing queue 'fila-exemplo' with 3 messages
+INFO - Started consuming from queue 'fila-exemplo'
 ```
 
 #### Recuperação de Falhas
@@ -226,7 +245,7 @@ python main.py
 export RABBITMQ_HOST=your-rabbitmq-server
 export RABBITMQ_USERNAME=your-user
 export RABBITMQ_PASSWORD=your-password
-export RABBITMQ_QUEUE_NAME=your-queue
+export RABBITMQ_QUEUE_NAME=fila-exemplo
 export RABBITMQ_QUEUE_MODE=passive
 
 # Executar com logging estruturado
@@ -305,8 +324,8 @@ WARNING - Retrying connection in 2.0s (attempt 2/10)
 
 **Sintomas:**
 ```
-DEBUG - Queue synopsis_queue does not exist or is not accessible
-INFO - Waiting for queue 'synopsis_queue' to be available...
+DEBUG - Queue fila-exemplo does not exist or is not accessible
+INFO - Waiting for queue 'fila-exemplo' to be available...
 ```
 
 **Soluções:**
@@ -368,7 +387,7 @@ channel = connection.channel()
 
 # Verificar se fila existe
 try:
-    method = channel.queue_declare(queue='synopsis_queue', passive=True)
+    method = channel.queue_declare(queue='fila-exemplo', passive=True)
     print(f"Queue exists with {method.method.message_count} messages")
 except:
     print("Queue does not exist")
@@ -393,24 +412,86 @@ RABBITMQ_RECOVERY_TIMEOUT=60.0      # Recovery mais conservador
 
 ## 🏗️ Arquitetura
 
+### Fluxo Completo
+
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Sua API       │    │   RabbitMQ       │    │   Consumer      │
-│   (Producer)    │───▶│   Server         │───▶│   (Este App)    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-        │                       │                       │
-        │ Cria fila            │ Gerencia msgs         │ Processa msgs
-        │ Publica msgs         │ Roteamento            │ Auto-retry
-        │                      │ Persistência          │ Circuit breaker
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Sua API       │    │   RabbitMQ       │    │   Consumer      │    │   LLM Service   │
+│ (Producer +     │───▶│   Server         │───▶│   (Este App)    │───▶│ (Hugging Face)  │
+│  Callback)      │    │                  │    │                 │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
+        ▲                       │                       │                       │
+        │                       │                       │                       │
+        │ MESMA API             │                       ▼                       ▼
+        │ Produz e Recebe       │       ┌───────────────────────────────────────────────────────────┐
+        │                       │       │              Processamento da Mensagem                    │
+        │                       │       │  1. Recebe dados do livro                               │
+        │                       │       │  2. Gera sinopse com LLM                                │
+        │                       │       │  3. Processa resultado                                  │
+        │                       │       └───────────────────────────────────────────────────────────┘
+        │                       │                               │
+        │                       │                               ▼
+        └───────────────────────────────────────────────────────────────────────────────────────────
+                          🔄 CALLBACK para a MESMA API (PUT /endpointQueAtualizaraApenasADescriçãoEÉdesprotegido/{id})
+                              Atualiza item com sinopse gerada
 ```
 
-## 🤝 Contribuindo
+### Componentes
 
-1. Fork o projeto
-2. Crie uma branch feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
-4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
+| Componente | Responsabilidade |
+|------------|------------------|
+| **Sua API (Producer + Callback)** | Publica mensagens E recebe sinopse via PUT /endpointQueAtualizaraApenasADescriçãoEÉdesprotegido/{id} |
+| **RabbitMQ Server** | Gerencia msgs, roteamento, persistência |
+| **Consumer (Este App)** | Processa msgs, auto-retry, circuit breaker |
+| **LLM Service** | Gera sinopses automaticamente |
+
+> **💡 Importante**: A mesma API que produz/publica a mensagem inicial é a que recebe o callback final com a sinopse gerada.
+
+### Fluxo Detalhado
+
+1. **📤 SUA API publica mensagem** → Dados do livro enviados para RabbitMQ
+2. **📥 Consumer recebe mensagem** → Processa dados com retry automático  
+3. **🤖 LLM gera sinopse** → Hugging Face ou fallback local
+4. **📞 Callback para a MESMA API** → PUT /endpointQueAtualizaraApenasADescriçãoEÉdesprotegido/{id} com sinopse gerada
+5. **✅ Mensagem confirmada** → ACK enviado ao RabbitMQ
+
+> **🔄 Ciclo Completo**: Sua API inicia o processo publicando uma mensagem e finaliza recebendo a sinopse gerada via callback.
+
+### 🔄 Configuração do Callback da API
+
+O consumer faz callback para a **MESMA API** que publicou a mensagem original, completando o ciclo de processamento:
+
+```bash
+# Configuração do callback (adicionar ao .env)
+API_BASE_URL=http://localhost:8080
+API_CALLBACK_ENDPOINT=/endpointQueAtualizaraApenasADescriçãoEÉdesprotegido/{id}
+API_TIMEOUT=30
+API_RETRY_ATTEMPTS=3
+```
+
+**Formato da mensagem esperada:**
+```json
+{
+  "id": "12345",
+  "titulo": "Dom Casmurro",
+  "autor": "Machado de Assis",
+  "genero": "Romance",
+  "ano": 1899
+}
+```
+
+**Callback enviado de volta para SUA API:**
+```http
+PUT /endpointQueAtualizaraApenasADescriçãoEÉdesprotegido/12345
+Content-Type: application/json
+
+{
+  "descricao": "Dom Casmurro é um romance que narra a história de Bentinho e sua suspeita de traição..."
+}
+```
+
+> **💡 Fluxo Circular**: API A → RabbitMQ → Consumer → LLM → API A (mesma que iniciou)
+
 
 ## 🦙 Configuração LLM
 
@@ -418,21 +499,30 @@ O consumer integra com serviços LLM para gerar sinopses automaticamente. Veja [
 
 ### Configuração LLM:
 
-#### 🤗 Hugging Face (Gratuito)
+#### 🤗 Hugging Face (Gratuito com Fallback)
 ```bash
-HF_API_KEY=sua-chave-huggingface
+# Deixe vazio para usar fallback ou configure com chave real
+HF_API_KEY=
 HF_MODEL=meta-llama/Llama-2-7b-chat-hf
 LLM_MAX_TOKENS=500
 LLM_TEMPERATURE=0.7
+LLM_TIMEOUT=30
 ```
 
+**Opções de configuração:**
+1. **Fallback (Gratuito)**: Deixe `HF_API_KEY` vazio - usa templates locais
+2. **API Real**: Configure `HF_API_KEY` com token do [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+
+**Para usar API real:**
 1. Crie conta em [huggingface.co](https://huggingface.co)
 2. Gere token em Settings → Access Tokens
 3. Configure `HF_API_KEY` no `.env`
 
 ### Fluxo Completo:
 ```
-Java API → RabbitMQ → Consumer → LLM → Sinopse Gerada
+SUA API → RabbitMQ → Consumer → LLM → MESMA API → Livro Atualizado
+     ↑___________________________________________________|
+                    (Ciclo Completo - Mesma API)
 ```
 
 ## 📄 Licença
