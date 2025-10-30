@@ -1,3 +1,4 @@
+from numbers import Number
 from src.domain.entities import Message
 from src.infrastructure.llm.llm_service import LLMService
 from datetime import datetime
@@ -66,7 +67,7 @@ class ProcessMessageUseCase:
             api_endpoint = os.getenv("API_CALLBACK_ENDPOINT", "/livros/atualizar/sinopse")
             api_timeout = int(os.getenv("API_TIMEOUT", "30"))
             
-            url = f"{api_base_url}{api_endpoint}?id={livro_id}&sinopse={quote(sinopse)}"
+            url = f"{api_base_url}{api_endpoint}?id={int(livro_id)}&sinopse={quote(sinopse)}"
             
             logger.info(f"Enviando callback para: {url}")
             
