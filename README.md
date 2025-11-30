@@ -69,8 +69,9 @@ RABBITMQ_WAIT_FOR_QUEUE=true
 RABBITMQ_QUEUE_CHECK_INTERVAL=5.0
 
 # Configuração LLM (Hugging Face)
-# Deixe HF_API_KEY vazio para usar fallback
-# Para usar API real: obtenha chave em https://huggingface.co/settings/tokens
+# Preencha HF_TOKEN (ou HF_API_KEY para compatibilidade)
+# Deixe ambos vazios para usar fallback local
+HF_TOKEN=
 HF_API_KEY=
 HF_MODEL=meta-llama/Llama-2-7b-chat-hf
 LLM_MAX_TOKENS=500
@@ -99,7 +100,8 @@ LLM_TIMEOUT=30
 | `RABBITMQ_QUEUE_MODE` | `passive` | Modo: `passive` ou `active` |
 | `RABBITMQ_WAIT_FOR_QUEUE` | `true` | Aguardar fila aparecer |
 | `RABBITMQ_QUEUE_CHECK_INTERVAL` | `5.0` | Intervalo de verificação da fila (seg) |
-| `HF_API_KEY` | `` | Chave da API Hugging Face (opcional) |
+| `HF_TOKEN` | `` | Token da API Hugging Face (recomendado) |
+| `HF_API_KEY` | `` | Nome legado para o token (compatibilidade) |
 | `HF_MODEL` | `meta-llama/Llama-2-7b-chat-hf` | Modelo LLM a usar |
 | `LLM_MAX_TOKENS` | `500` | Máximo de tokens na resposta |
 | `LLM_TEMPERATURE` | `0.7` | Criatividade do modelo (0.0-1.0) |
@@ -501,7 +503,9 @@ O consumer integra com serviços LLM para gerar sinopses automaticamente. Veja [
 
 #### 🤗 Hugging Face (Gratuito com Fallback)
 ```bash
-# Deixe vazio para usar fallback ou configure com chave real
+# Configure HF_TOKEN (ou HF_API_KEY para compatibilidade)
+# Deixe ambos vazios para usar fallback local
+HF_TOKEN=
 HF_API_KEY=
 HF_MODEL=meta-llama/Llama-2-7b-chat-hf
 LLM_MAX_TOKENS=500
@@ -510,13 +514,13 @@ LLM_TIMEOUT=30
 ```
 
 **Opções de configuração:**
-1. **Fallback (Gratuito)**: Deixe `HF_API_KEY` vazio - usa templates locais
-2. **API Real**: Configure `HF_API_KEY` com token do [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+1. **Fallback (Gratuito)**: Deixe `HF_TOKEN`/`HF_API_KEY` vazios - usa templates locais
+2. **API Real**: Configure `HF_TOKEN` (ou `HF_API_KEY`) com token do [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 
 **Para usar API real:**
 1. Crie conta em [huggingface.co](https://huggingface.co)
 2. Gere token em Settings → Access Tokens
-3. Configure `HF_API_KEY` no `.env`
+3. Configure `HF_TOKEN` (ou `HF_API_KEY`) no `.env`
 
 ### Fluxo Completo:
 ```

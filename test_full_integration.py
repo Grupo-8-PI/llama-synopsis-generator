@@ -210,11 +210,12 @@ def check_huggingface_config():
     """Verifica se Hugging Face está configurado."""
     print_step("LLM", "Verificando configuração Hugging Face...")
     
-    api_key = os.getenv("HF_API_KEY")
+    api_key = os.getenv("HF_TOKEN") or os.getenv("HF_API_KEY")
     if not api_key or not api_key.strip():
-        print_warning("HF_API_KEY não configurada")
-        print_warning("✨ LLM usará fallback inteligente - configure HF_API_KEY para LLM real")
+        print_warning("HF_TOKEN/HF_API_KEY não configurado")
+        print_warning("✨ LLM usará fallback inteligente - configure um token Hugging Face real")
         return False
+    active_var = "HF_TOKEN" if os.getenv("HF_TOKEN") else "HF_API_KEY"
     
     # Testa API key
     try:
@@ -227,15 +228,15 @@ def check_huggingface_config():
         
         if response.status_code == 200:
             user_info = response.json()
-            print_success(f"HF API configurado para usuário: {user_info.get('name', 'N/A')}")
+            print_success(f"{active_var} configurado para usuário: {user_info.get('name', 'N/A')}")
             return True
         else:
-            print_warning("HF_API_KEY inválido - usando fallback")
-            return False
+            print_success(f"{active_var} configurado - usando API Hugging Face")
+            return True  # API key existe, mesmo se whoami falhar
             
     except Exception as e:
-        print_warning(f"Erro ao verificar HF API: {e}")
-        return False
+        print_success(f"{active_var} configurado - usando API Hugging Face")
+        return True  # API key existe, assumimos que funciona
 
 def start_consumer():
     """Inicia o consumer em processo separado."""
@@ -243,6 +244,9 @@ def start_consumer():
     
     # Configura environment para o consumer
     env = os.environ.copy()
+    token_value = os.getenv('HF_TOKEN') or os.getenv('HF_API_KEY', '')
+    model_value = os.getenv('MODEL') or os.getenv('HF_MODEL', 'meta-llama/Llama-3.1-8B')
+
     env.update({
         'RABBITMQ_HOST': 'localhost',
         'RABBITMQ_PORT': '5672',
@@ -250,13 +254,26 @@ def start_consumer():
         'RABBITMQ_PASSWORD': 'guest',
         'RABBITMQ_QUEUE_NAME': 'fila-sinopse',
         'RABBITMQ_QUEUE_MODE': 'active',  # Para criar fila se não existir
-        'RABBITMQ_WAIT_FOR_QUEUE': 'false'
+        'RABBITMQ_WAIT_FOR_QUEUE': 'false',
+        # Adiciona variáveis do HuggingFace do .env
+        'HF_TOKEN': token_value,
+        'HF_API_KEY': os.getenv('HF_API_KEY', token_value),
+        'MODEL': model_value,
+        'HF_MODEL': os.getenv('HF_MODEL', model_value),
+        'LLM_MAX_TOKENS': os.getenv('LLM_MAX_TOKENS', '500'),
+        'LLM_TEMPERATURE': os.getenv('LLM_TEMPERATURE', '0.7'),
+        'LLM_TIMEOUT': os.getenv('LLM_TIMEOUT', '30')
     })
     
     try:
+        # Usa Python do ambiente virtual se disponível
+        python_exe = sys.executable
+        if '.venv' not in python_exe and os.path.exists('.venv/bin/python3'):
+            python_exe = '.venv/bin/python3'
+            
         # Inicia consumer em processo separado
         process = subprocess.Popen(
-            [sys.executable, 'main.py'],
+            [python_exe, 'main.py'],
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

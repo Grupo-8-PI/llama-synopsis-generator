@@ -18,7 +18,6 @@ consumer = None
 
 
 def signal_handler(signum, frame):
-    """Handle system signals for graceful shutdown."""
     logger.info(f"Received signal {signum}, initiating graceful shutdown...")
     if consumer:
         consumer.stop()
@@ -26,7 +25,6 @@ def signal_handler(signum, frame):
 
 
 def main():
-    """Initialize and run RabbitMQ consumer with automatic retry capability."""
     global consumer
     
     signal.signal(signal.SIGINT, signal_handler)

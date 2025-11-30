@@ -111,7 +111,6 @@ class RabbitMQConsumer:
             return False
 
     def _wait_for_queue(self) -> bool:
-        """Wait for queue to be available, checking periodically."""
         logger.info(f"Waiting for queue '{self.config.queue_name}' to be available...")
         
         while not self.should_stop:
@@ -129,7 +128,7 @@ class RabbitMQConsumer:
         return False
 
     def _get_queue_info(self) -> dict:
-        """Get queue information for health check."""
+
         try:
             method = self.channel.queue_declare(
                 queue=self.config.queue_name,
@@ -144,7 +143,7 @@ class RabbitMQConsumer:
             return {"exists": False, "error": str(e)}
 
     def ensure_queue(self) -> bool:
-        """Ensure queue is available based on configured mode."""
+
         if self.config.queue_mode == "passive":
             if self._check_queue_exists():
                 queue_info = self._get_queue_info()
@@ -175,14 +174,14 @@ class RabbitMQConsumer:
             return False
 
     def _ensure_connection(self) -> bool:
-        """Ensure active connection, reconnecting if necessary."""
+
         if self.connection and not self.connection.is_closed:
             return True
             
         return self.connect()
 
     def start_consuming(self, callback: Callable) -> None:
-        """Start message consumption with automatic retry and error handling."""
+
         self.is_consuming = True
         
         while not self.should_stop:
@@ -250,7 +249,7 @@ class RabbitMQConsumer:
         logger.info("Consumer stopped")
 
     def _cleanup_connection(self) -> None:
-        """Safely cleanup connection and channel resources."""
+
         try:
             if self.channel and not self.channel.is_closed:
                 self.channel.stop_consuming()
@@ -268,7 +267,7 @@ class RabbitMQConsumer:
         self.queue_available = False
 
     def stop(self) -> None:
-        """Stop consumer gracefully."""
+
         logger.info("Stopping consumer...")
         self.should_stop = True
         
@@ -279,7 +278,7 @@ class RabbitMQConsumer:
                 pass
 
     def close(self) -> None:
-        """Close RabbitMQ connection safely."""
+
         self.stop()
         self._cleanup_connection()
         logger.info("Consumer closed")
