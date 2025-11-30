@@ -4,8 +4,7 @@ from typing import Any, Dict
 
 
 @dataclass
-class Message:
-    """Entidade que representa uma mensagem recebida do RabbitMQ."""
+class MessageRecebida:
 
     id: str
     body: Dict[str, Any]

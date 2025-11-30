@@ -1,5 +1,5 @@
 from numbers import Number
-from src.domain.entities import Message
+from src.domain.entities import MessageRecebida
 from src.infrastructure.llm.llm_service import LLMService
 from datetime import datetime
 import uuid
@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class ProcessMessageUseCase:
-    """Caso de uso para processar mensagens recebidas e gerar sinopses."""
 
     def __init__(self):
         try:
@@ -23,7 +22,6 @@ class ProcessMessageUseCase:
             self.llm_service = None
 
     def execute(self, body: bytes, routing_key: str) -> None:
-        """Executa o processamento da mensagem."""
         message = self._parse_message(body, routing_key)
 
         if not self._validate_message(message):
@@ -61,7 +59,6 @@ class ProcessMessageUseCase:
         
 
     def _send_callback_to_api(self, livro_id: str, sinopse: str) -> None:
-        """Envia callback para a API com a sinopse gerada."""
         try:
             api_base_url = os.getenv("API_BASE_URL", "http://localhost:8080")
             api_endpoint = os.getenv("API_CALLBACK_ENDPOINT", "/livros/atualizar/sinopse")
@@ -91,13 +88,12 @@ class ProcessMessageUseCase:
         except Exception as e:
             logger.error(f"Erro inesperado ao enviar callback: {e}")
 
-    def _parse_message(self, body: bytes, routing_key: str) -> Message:
-        """Converte mensagem bruta em entidade de domínio assumindo JSON."""
+    def _parse_message(self, body: bytes, routing_key: str) -> MessageRecebida:
         try:
             decoded_body = body.decode('utf-8')
             message_body = json.loads(decoded_body)
             
-            return Message(
+            return MessageRecebida(
                 id=str(uuid.uuid4()),
                 body=message_body,
                 timestamp=datetime.now(),
@@ -115,8 +111,7 @@ class ProcessMessageUseCase:
             logger.error(f"Erro inesperado ao processar mensagem: {e}")
             raise
 
-    def _validate_message(self, message: Message) -> bool:
-        """Valida se a mensagem contém os dados obrigatórios do livro."""
+    def _validate_message(self, message: MessageRecebida) -> bool:
         if not message.body:
             return False
             

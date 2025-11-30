@@ -4,7 +4,6 @@ import os
 
 @dataclass
 class RabbitMQConfig:
-    """RabbitMQ connection configuration loaded from environment variables."""
 
     host: str = None
     port: int = None
